@@ -93,6 +93,169 @@ void HAL_MspInit(void)
 }
 
 /**
+  * @brief I2C MSP Initialization
+  * This function configures the hardware resources used in this example
+  * @param hi2c: I2C handle pointer
+  * @retval None
+  */
+void HAL_I2C_MspInit(I2C_HandleTypeDef* hi2c)
+{
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
+  if(hi2c->Instance==I2C2)
+  {
+    /* USER CODE BEGIN I2C2_MspInit 0 */
+
+    /* USER CODE END I2C2_MspInit 0 */
+  if(IS_ENGINEERING_BOOT_MODE())
+  {
+
+  /** Initializes the peripherals clock
+  */
+    PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_I2C12;
+    PeriphClkInit.I2c12ClockSelection = RCC_I2C12CLKSOURCE_HSI;
+    if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
+    {
+      Error_Handler();
+    }
+
+  }
+
+    __HAL_RCC_GPIOF_CLK_ENABLE();
+    __HAL_RCC_GPIOG_CLK_ENABLE();
+    /**I2C2 GPIO Configuration
+    PF1     ------> I2C2_SCL
+    PG15     ------> I2C2_SDA
+    */
+    GPIO_InitStruct.Pin = GPIO_PIN_1;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    GPIO_InitStruct.Alternate = GPIO_AF4_I2C2;
+    HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
+
+    GPIO_InitStruct.Pin = GPIO_PIN_15;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    GPIO_InitStruct.Alternate = GPIO_AF4_I2C2;
+    HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
+
+    /* Peripheral clock enable */
+    __HAL_RCC_I2C2_CLK_ENABLE();
+    /* I2C2 interrupt Init */
+    HAL_NVIC_SetPriority(I2C2_EV_IRQn, 1, 0);
+    HAL_NVIC_EnableIRQ(I2C2_EV_IRQn);
+    HAL_NVIC_SetPriority(I2C2_ER_IRQn, 1, 0);
+    HAL_NVIC_EnableIRQ(I2C2_ER_IRQn);
+    /* USER CODE BEGIN I2C2_MspInit 1 */
+
+    /* USER CODE END I2C2_MspInit 1 */
+  }
+  else if(hi2c->Instance==I2C5)
+  {
+    /* USER CODE BEGIN I2C5_MspInit 0 */
+
+    /* USER CODE END I2C5_MspInit 0 */
+
+  if(IS_ENGINEERING_BOOT_MODE())
+  {
+
+  /** Initializes the peripherals clock
+  */
+    PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_I2C35;
+    PeriphClkInit.I2c35ClockSelection = RCC_I2C35CLKSOURCE_PCLK1;
+    if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
+    {
+      Error_Handler();
+    }
+
+  }
+
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    /**I2C5 GPIO Configuration
+    PA11     ------> I2C5_SCL
+    PA12     ------> I2C5_SDA
+    */
+    GPIO_InitStruct.Pin = GPIO_PIN_11|GPIO_PIN_12;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    GPIO_InitStruct.Alternate = GPIO_AF4_I2C5;
+    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+    /* Peripheral clock enable */
+    __HAL_RCC_I2C5_CLK_ENABLE();
+    /* I2C5 interrupt Init */
+    HAL_NVIC_SetPriority(I2C5_EV_IRQn, 1, 0);
+    HAL_NVIC_EnableIRQ(I2C5_EV_IRQn);
+    HAL_NVIC_SetPriority(I2C5_ER_IRQn, 1, 0);
+    HAL_NVIC_EnableIRQ(I2C5_ER_IRQn);
+    /* USER CODE BEGIN I2C5_MspInit 1 */
+
+    /* USER CODE END I2C5_MspInit 1 */
+  }
+
+}
+
+/**
+  * @brief I2C MSP De-Initialization
+  * This function freeze the hardware resources used in this example
+  * @param hi2c: I2C handle pointer
+  * @retval None
+  */
+void HAL_I2C_MspDeInit(I2C_HandleTypeDef* hi2c)
+{
+  if(hi2c->Instance==I2C2)
+  {
+    /* USER CODE BEGIN I2C2_MspDeInit 0 */
+
+    /* USER CODE END I2C2_MspDeInit 0 */
+    /* Peripheral clock disable */
+    __HAL_RCC_I2C2_CLK_DISABLE();
+
+    /**I2C2 GPIO Configuration
+    PF1     ------> I2C2_SCL
+    PG15     ------> I2C2_SDA
+    */
+    HAL_GPIO_DeInit(GPIOF, GPIO_PIN_1);
+
+    HAL_GPIO_DeInit(GPIOG, GPIO_PIN_15);
+
+    /* I2C2 interrupt DeInit */
+    HAL_NVIC_DisableIRQ(I2C2_EV_IRQn);
+    HAL_NVIC_DisableIRQ(I2C2_ER_IRQn);
+    /* USER CODE BEGIN I2C2_MspDeInit 1 */
+
+    /* USER CODE END I2C2_MspDeInit 1 */
+  }
+  else if(hi2c->Instance==I2C5)
+  {
+    /* USER CODE BEGIN I2C5_MspDeInit 0 */
+
+    /* USER CODE END I2C5_MspDeInit 0 */
+    /* Peripheral clock disable */
+    __HAL_RCC_I2C5_CLK_DISABLE();
+
+    /**I2C5 GPIO Configuration
+    PA11     ------> I2C5_SCL
+    PA12     ------> I2C5_SDA
+    */
+    HAL_GPIO_DeInit(GPIOA, GPIO_PIN_11);
+
+    HAL_GPIO_DeInit(GPIOA, GPIO_PIN_12);
+
+    /* I2C5 interrupt DeInit */
+    HAL_NVIC_DisableIRQ(I2C5_EV_IRQn);
+    HAL_NVIC_DisableIRQ(I2C5_ER_IRQn);
+    /* USER CODE BEGIN I2C5_MspDeInit 1 */
+
+    /* USER CODE END I2C5_MspDeInit 1 */
+  }
+
+}
+
+/**
   * @brief IPCC MSP Initialization
   * This function configures the hardware resources used in this example
   * @param hipcc: IPCC handle pointer
