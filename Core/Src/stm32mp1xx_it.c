@@ -60,6 +60,7 @@
 extern I2C_HandleTypeDef hi2c2;
 extern I2C_HandleTypeDef hi2c5;
 extern IPCC_HandleTypeDef hipcc;
+extern SPI_HandleTypeDef hspi5;
 extern UART_HandleTypeDef huart3;
 /* USER CODE BEGIN EV */
 
@@ -248,6 +249,20 @@ void USART3_IRQHandler(void)
   /* USER CODE BEGIN USART3_IRQn 1 */
 
   /* USER CODE END USART3_IRQn 1 */
+}
+
+/**
+  * @brief This function handles SPI5 global interrupt.
+  */
+void SPI5_IRQHandler(void)
+{
+  /* USER CODE BEGIN SPI5_IRQn 0 */
+
+  /* USER CODE END SPI5_IRQn 0 */
+  HAL_SPI_IRQHandler(&hspi5);
+  /* USER CODE BEGIN SPI5_IRQn 1 */
+
+  /* USER CODE END SPI5_IRQn 1 */
 }
 
 /**
