@@ -104,51 +104,14 @@ void uart_driver_create(uart_driver_t* ud, const uart_cfg_t* cfg)
     }
 }
 
-/* TEMP */
-typedef struct {
-    uint32_t isr;        /* USART3->ISR on entry                    */
-    uint32_t cr1;        /* USART3->CR1 on entry                    */
-    uint16_t rx_cnt;     /* huart.RxXferCount on entry              */
-    uint16_t rx_cnt_out; /* huart.RxXferCount after the HAL handler */
-    uint8_t  rx_state;   /* huart.RxState on entry (0x22 = BUSY_RX) */
-    uint8_t  g_state;    /* huart.gState on entry  (0x21 = BUSY_TX) */
-} irq_trace_t;
-
-#define IRQ_TRACE_LEN 32
-volatile irq_trace_t g_irq_trace[IRQ_TRACE_LEN];
-volatile uint32_t    g_irq_n;          /* total interrupts seen */
-
 void uart_driver_irq(USART_TypeDef *instance)
 {
-    uart_driver_t *u = find_by_instance(instance);
-    if (!u) return;
-
-    volatile irq_trace_t *t = NULL;
-    if (g_irq_n < IRQ_TRACE_LEN) {
-        t = &g_irq_trace[g_irq_n];
-        t->isr      = instance->ISR;
-        t->cr1      = instance->CR1;
-        t->rx_cnt   = u->huart.RxXferCount;
-        t->rx_state = (uint8_t)u->huart.RxState;
-        t->g_state  = (uint8_t)u->huart.gState;
+    uart_driver_t* d = find_by_instance(instance);
+    if (d)
+    {
+        HAL_UART_IRQHandler(&d->huart);
     }
-    g_irq_n++;
-
-    HAL_UART_IRQHandler(&u->huart);
-
-    if (t) t->rx_cnt_out = u->huart.RxXferCount;
 }
-
-/* TEMP */
-// ^^^^^^^^^^^^^^^ TEMP UNCOMMENT BELOW
-//void uart_driver_irq(USART_TypeDef *instance)
-//{
-//    uart_driver_t* d = find_by_instance(instance);
-//    if (d)
-//    {
-//        HAL_UART_IRQHandler(&d->huart);
-//    }
-//}
 
 /* HAL callbacks */
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef* h)
