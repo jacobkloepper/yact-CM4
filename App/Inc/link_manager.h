@@ -26,6 +26,9 @@ typedef struct {
     uint32_t noise_errors;
     uint32_t overruns;
     uint32_t other_errors;
+    uint32_t nacks;
+    uint32_t bus_errors;
+    uint32_t arb_lost;
     uint32_t start_ms;
     uint32_t end_ms;
 } link_stats_t;
@@ -38,7 +41,8 @@ typedef struct {
 
 typedef struct {
     /* Link lifetime */
-    link_driver_t*      driver;
+    link_driver_t*      tx_driver; /* tx endpoint */
+    link_driver_t*      rx_driver; /* rx endpoint (== tx_driver for loopback) */
     link_state_t        state;
     link_test_cfg_t     cfg;
     link_stats_t        stats;
@@ -55,7 +59,7 @@ typedef struct {
 } link_manager_t;
 
 /* Bind a manager to a driver (static alloc. by caller) */
-void link_manager_init(link_manager_t* m, link_driver_t* d);
+void link_manager_init(link_manager_t* m, link_driver_t* tx, link_driver_t* rx);
 
 /* Initialize driver and set running state. */
 link_status_t link_manager_start(link_manager_t* m, const link_test_cfg_t* cfg);

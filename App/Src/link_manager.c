@@ -5,10 +5,33 @@
 #include <string.h>
 
 /* Static helpers */
+static uint8_t split(const link_manager_t* m)
+{
+    return m->rx_driver != m->tx_driver;
+}
+
+static void abort_all(link_manager_t* m)
+{
+    m->tx_driver->ops->abort(m->tx_driver);
+    if (split(m))
+    {
+        m->rx_driver->ops->abort(m->rx_driver);
+    }
+}
+
+static void deinit_all(link_manager_t* m)
+{
+    m->tx_driver->ops->deinit(m->tx_driver);
+    if (split(m))
+    {
+        m->rx_driver->ops->deinit(m->rx_driver);
+    }
+}
+
 static void finish(link_manager_t* m, link_state_t state)
 {
-    m->driver->ops->abort(m->driver);
-    m->driver->ops->deinit(m->driver);
+    abort_all(m);
+    deinit_all(m);
     m->stats.end_ms = HAL_GetTick();
     m->state = state;
 }
@@ -23,8 +46,8 @@ static void begin_frame(link_manager_t* m)
     memset(m->rx_buf, 0, m->cfg.frame_len);
 
     // Initialize sender/receiver
-    if (m->driver->ops->start_rx(m->driver, m->rx_buf, m->cfg.frame_len) != LINK_OK ||
-        m->driver->ops->start_tx(m->driver, m->tx_buf, m->cfg.frame_len) != LINK_OK)
+    if (m->rx_driver->ops->start_rx(m->rx_driver, m->rx_buf, m->cfg.frame_len) != LINK_OK ||
+        m->tx_driver->ops->start_tx(m->tx_driver, m->tx_buf, m->cfg.frame_len) != LINK_OK)
     {
         finish(m, LINK_STATE_FAILED);
         return;
@@ -63,10 +86,11 @@ void link_manager_get_stats(const link_manager_t* m, link_stats_t* stats)
 }
 
 // Binds the driver to the link, and idles the link.
-void link_manager_init(link_manager_t* m, link_driver_t* d)
+void link_manager_init(link_manager_t* m, link_driver_t* tx, link_driver_t* rx)
 {
     memset(m, 0, sizeof *m);
-    m->driver = d;
+    m->tx_driver = tx;
+    m->rx_driver = rx ? rx : tx;
     m->state = LINK_STATE_IDLE;
 }
 
@@ -86,8 +110,14 @@ link_status_t link_manager_start(link_manager_t* m, const link_test_cfg_t* cfg)
     m->frame_active = 0;
 
     // Initialize driver.
-    if (m->driver->ops->init(m->driver) != LINK_OK)
+    if (m->tx_driver->ops->init(m->tx_driver) != LINK_OK)
     {
+        m->state = LINK_STATE_FAILED;
+        return LINK_ERROR;
+    }
+    if (split(m) && m->rx_driver->ops->init(m->rx_driver) != LINK_OK)
+    {
+        m->tx_driver->ops->deinit(m->tx_driver);
         m->state = LINK_STATE_FAILED;
         return LINK_ERROR;
     }
@@ -119,29 +149,39 @@ void link_manager_step(link_manager_t* m)
     }
 
     // Atomically snapshot and clear flags from ISR
+    link_driver_t* tx = m->tx_driver;
+    link_driver_t* rx = m->rx_driver;
     uint8_t tx_done, rx_done; uint32_t err;
     __disable_irq();
 
-    tx_done = m->driver->tx_done;
-    m->driver->tx_done = 0;
+    tx_done = tx->tx_done;
+    tx->tx_done = 0;
 
-    rx_done = m->driver->rx_done;
-    m->driver->rx_done = 0;
+    rx_done = rx->rx_done;
+    rx->rx_done = 0;
 
-    err = m->driver->err_flags;
-    m->driver->err_flags = 0;
+    err = tx->err_flags;
+    tx->err_flags = 0;
+    if (rx != tx)
+    {
+        err |= rx->err_flags;
+        rx->err_flags = 0;
+    }
     __enable_irq();
 
     // Update link errors
     if (err)
     {
-        if (err & LINK_ERR_PARITY) m->stats.parity_errors++;
-        if (err & LINK_ERR_FRAMING) m->stats.framing_errors++;
-        if (err & LINK_ERR_NOISE) m->stats.noise_errors++;
-        if (err & LINK_ERR_OVERRUN) m->stats.overruns++;
-        if (err & LINK_ERR_OTHER) m->stats.other_errors++;
+        if (err & LINK_ERR_PARITY)      m->stats.parity_errors++;
+        if (err & LINK_ERR_FRAMING)     m->stats.framing_errors++;
+        if (err & LINK_ERR_NOISE)       m->stats.noise_errors++;
+        if (err & LINK_ERR_OVERRUN)     m->stats.overruns++;
+        if (err & LINK_ERR_OTHER)       m->stats.other_errors++;
+        if (err & LINK_ERR_NACK)        m->stats.nacks++;
+        if (err & LINK_ERR_BUS)         m->stats.bus_errors++;
+        if (err & LINK_ERR_ARBLOST)     m->stats.arb_lost++;
         m->frame_failed = 1;
-        m->driver->ops->abort(m->driver);
+        abort_all(m);
         end_frame(m);
         return;
     }
@@ -178,7 +218,7 @@ void link_manager_step(link_manager_t* m)
     {
         m->stats.timeouts++;
         m->frame_failed = 1;
-        m->driver->ops->abort(m->driver);
+        abort_all(m);
         end_frame(m);
     }
 }

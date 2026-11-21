@@ -23,6 +23,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "uart_driver.h"
+#include "i2c_driver.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -208,6 +209,8 @@ void SysTick_Handler(void)
 void I2C2_EV_IRQHandler(void)
 {
   /* USER CODE BEGIN I2C2_EV_IRQn 0 */
+  i2c_driver_ev_irq(I2C2);
+  return;
 
   /* USER CODE END I2C2_EV_IRQn 0 */
   HAL_I2C_EV_IRQHandler(&hi2c2);
@@ -222,6 +225,8 @@ void I2C2_EV_IRQHandler(void)
 void I2C2_ER_IRQHandler(void)
 {
   /* USER CODE BEGIN I2C2_ER_IRQn 0 */
+  i2c_driver_er_irq(I2C2);
+  return;
 
   /* USER CODE END I2C2_ER_IRQn 0 */
   HAL_I2C_ER_IRQHandler(&hi2c2);
@@ -279,6 +284,8 @@ void IPCC_TX1_IRQHandler(void)
 void I2C5_EV_IRQHandler(void)
 {
   /* USER CODE BEGIN I2C5_EV_IRQn 0 */
+  i2c_driver_ev_irq(I2C5);
+  return;
 
   /* USER CODE END I2C5_EV_IRQn 0 */
   HAL_I2C_EV_IRQHandler(&hi2c5);
@@ -293,6 +300,8 @@ void I2C5_EV_IRQHandler(void)
 void I2C5_ER_IRQHandler(void)
 {
   /* USER CODE BEGIN I2C5_ER_IRQn 0 */
+  i2c_driver_er_irq(I2C5);
+  return;
 
   /* USER CODE END I2C5_ER_IRQn 0 */
   HAL_I2C_ER_IRQHandler(&hi2c5);

@@ -26,6 +26,7 @@
 #include "stm32mp1xx_hal_uart.h"
 #include "stm32mp1xx_hal_uart_ex.h"
 #include "uart_driver.h"
+#include "i2c_driver.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -35,6 +36,10 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define I2C_MASTER_INST I2C5
+#define I2C_SLAVE_INST  I2C2
+#define I2C2_TIMING     0x10707DBC
+#define I2C5_TIMING     0x40505874 
 
 /* USER CODE END PD */
 
@@ -53,7 +58,8 @@ UART_HandleTypeDef huart3;
 
 /* USER CODE BEGIN PV */
 static uart_driver_t  uart3;
-static link_manager_t man_uart3;
+static i2c_driver_t i2c_m, i2c_s;
+static link_manager_t man_uart3, man_i2c;
 
 /* USER CODE END PV */
 
@@ -127,8 +133,8 @@ int main(void)
   MX_I2C5_Init();
   /* USER CODE BEGIN 2 */
 
-  // YACT-002 TESTING
-  uart_cfg_t cfg = {
+  /*              UART TEST             */
+  uart_cfg_t uart_cfg = {
     .instance = USART3,
     .baud = 115200,
     .word_length = UART_WORDLENGTH_8B,
@@ -136,15 +142,41 @@ int main(void)
     .stop_bits = UART_STOPBITS_1
   };
 
-  uart_driver_create(&uart3, &cfg);
-  link_manager_init(&man_uart3, &uart3.base);
+  uart_driver_create(&uart3, &uart_cfg);
+  link_manager_init(&man_uart3, &uart3.base, NULL);
 
-  link_test_cfg_t test_uart3 = {
+  /*              I2C TEST              */
+  i2c_cfg_t i2c_master_cfg = {
+    .instance = I2C_MASTER_INST,
+    .role = I2C_ROLE_MASTER,
+    .timing = I2C5_TIMING,
+    .peer_addr7 = 0x18
+  };
+  i2c_cfg_t i2c_slave_cfg = {
+    .instance = I2C_SLAVE_INST,
+    .role = I2C_ROLE_SLAVE,
+    .timing = I2C2_TIMING,
+    .own_addr7 = 0x18
+  };
+  i2c_driver_create(&i2c_m, &i2c_master_cfg);
+  i2c_driver_create(&i2c_s, &i2c_slave_cfg);
+  link_manager_init(&man_i2c, &i2c_m.base, &i2c_s.base);
+
+  // UART TEST CONFIG
+  //link_test_cfg_t test_uart3 = {
+  //  .frame_len = 64,
+  //  .frame_count = 1000,
+  //  .frame_timeout_ms = 50
+  //};
+  //link_manager_start(&man_uart3, &test_uart3);
+
+  // I2C TEST CONFIG
+  link_test_cfg_t test = {
     .frame_len = 64,
-    .frame_count = 1000,
+    .frame_count = 100,
     .frame_timeout_ms = 50
   };
-  link_manager_start(&man_uart3, &test_uart3);
+  link_manager_start(&man_i2c, &test);
 
   /* USER CODE END 2 */
 
@@ -155,13 +187,12 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    link_manager_step(&man_uart3);
+    link_manager_step(&man_i2c);
 
-    if (link_manager_state(&man_uart3) == LINK_STATE_DONE)
+    if (link_manager_state(&man_i2c) == LINK_STATE_DONE)
     {
       link_stats_t s;
-      link_manager_get_stats(&man_uart3, &s);
-      //handoff s
+      link_manager_get_stats(&man_i2c, &s);
     }
   }
   /* USER CODE END 3 */

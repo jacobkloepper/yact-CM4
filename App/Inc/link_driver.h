@@ -17,15 +17,18 @@ typedef enum {
 #define LINK_ERR_NOISE      (1u << 2)
 #define LINK_ERR_OVERRUN    (1u << 3)
 #define LINK_ERR_OTHER      (1u << 4) // Anything else, expand as needed
+#define LINK_ERR_NACK       (1u << 5)
+#define LINK_ERR_BUS        (1u << 6)
+#define LINK_ERR_ARBLOST    (1u << 7)
 
 typedef struct link_driver link_driver_t;
 
 typedef struct {
-    link_status_t (*init)(link_driver_t *d);
-    link_status_t (*deinit)(link_driver_t *d);
-    link_status_t (*start_tx)(link_driver_t *d, const uint8_t *buf, uint16_t len);
-    link_status_t (*start_rx)(link_driver_t *d, uint8_t *buf, uint16_t len);
-    void (*abort)(link_driver_t *d);
+    link_status_t (*init)       (link_driver_t *d);
+    link_status_t (*deinit)     (link_driver_t *d);
+    link_status_t (*start_tx)   (link_driver_t *d, const uint8_t *buf, uint16_t len);
+    link_status_t (*start_rx)   (link_driver_t *d, uint8_t *buf, uint16_t len);
+    void (*abort)               (link_driver_t *d);
 } link_driver_ops_t;
 
 /* Base struct. Flags written from interrupt context, atomic r/w. */
