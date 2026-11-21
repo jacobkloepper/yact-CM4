@@ -84,6 +84,17 @@ static link_status_t i2c_start_tx(link_driver_t* base, const uint8_t* buf, uint1
     return map_status(ret);
 }
 
+static link_status_t i2c_start_rx(link_driver_t* base, uint8_t* buf, uint16_t len)
+{
+    i2c_driver_t* d = (i2c_driver_t *)base;
+    HAL_StatusTypeDef ret;
+    if (d->cfg.role == I2C_ROLE_SLAVE)
+        ret = HAL_I2C_Slave_Receive_IT(&d->hi2c, buf, len);
+    else
+        ret = HAL_I2C_Master_Receive_IT(&d->hi2c, (uint16_t)(d->cfg.peer_addr7 << 1), buf, len);
+    return map_status(ret);
+}
+
 // HAL does not support slave transfer abort, so reset. Used on error/timeout paths.
 static void i2c_abort(link_driver_t* base)
 {
@@ -96,7 +107,7 @@ static const link_driver_ops_t I2C_OPS = {
     .init = i2c_init,
     .deinit = i2c_deinit,
     .start_tx = i2c_start_tx,
-    .statr_rx = i2c_start_rx,
+    .start_rx = i2c_start_rx,
     .abort = i2c_abort
 };
 

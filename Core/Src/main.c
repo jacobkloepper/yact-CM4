@@ -173,7 +173,7 @@ int main(void)
   // I2C TEST CONFIG
   link_test_cfg_t test = {
     .frame_len = 64,
-    .frame_count = 100,
+    .frame_count = 1000,
     .frame_timeout_ms = 50
   };
   link_manager_start(&man_i2c, &test);
