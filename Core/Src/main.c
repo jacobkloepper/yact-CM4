@@ -22,7 +22,10 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "link_manager.h"
+#include "stm32mp1xx_hal_uart.h"
+#include "stm32mp1xx_hal_uart_ex.h"
+#include "uart_driver.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -46,6 +49,8 @@ IPCC_HandleTypeDef hipcc;
 UART_HandleTypeDef huart3;
 
 /* USER CODE BEGIN PV */
+static uart_driver_t  uart3;
+static link_manager_t man_uart3;
 
 /* USER CODE END PV */
 
@@ -63,83 +68,6 @@ int MX_OPENAMP_Init(int RPMsgRole, rpmsg_ns_bind_cb ns_bind_cb);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
-// INITIAL USART3 TESTING
-#define BLK 64
-typedef struct {
-  uint32_t blocks, bytes_tx, bytes_rx_ok;
-  uint32_t byte_mismatch, bytes_lost, bit_errors;
-  uint32_t err_pe, err_ne, err_fe, err_ore;
-} link_stats_t;
-
-volatile link_stats_t st;
-static volatile uint8_t rx_done;
-static uint8_t tx[BLK], rx[BLK];
-static uint16_t lfsr = 0xACE1;
-
-// 16-bit Galois LFSR; deterministic, so you can regenerate the expected stream
-static uint8_t next_byte(void)
-{
-    uint8_t b = 0;
-    for (int i = 0; i < 8; i++) {
-        uint16_t lsb = lfsr & 1u;
-        lfsr >>= 1;
-        if (lsb) lfsr ^= 0xB400u;
-        b = (uint8_t)((b << 1) | lsb);
-    }
-    return b;
-}
-
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *h)
-{
-    if (h == &huart3) rx_done = 1;
-}
-
-void HAL_UART_ErrorCallback(UART_HandleTypeDef *h)
-{
-    if (h != &huart3) return;
-    uint32_t e = h->ErrorCode;
-    if (e & HAL_UART_ERROR_PE)  st.err_pe++;
-    if (e & HAL_UART_ERROR_NE)  st.err_ne++;
-    if (e & HAL_UART_ERROR_FE)  st.err_fe++;
-    if (e & HAL_UART_ERROR_ORE) st.err_ore++;
-    h->ErrorCode = HAL_UART_ERROR_NONE;
-}
-
-void uart_test_run(void)   // call from main() after MX_USART3_UART_Init()
-{
-    for (;;) {
-        for (int i = 0; i < BLK; i++) tx[i] = next_byte();
-        memset(rx, 0, sizeof rx);
-        rx_done = 0;
-
-        HAL_UART_Receive_IT(&huart3, rx, BLK);
-        HAL_UART_Transmit(&huart3, tx, BLK, 100);
-        st.bytes_tx += BLK;
-
-        uint32_t t0 = HAL_GetTick();
-        while (!rx_done && (HAL_GetTick() - t0) < 50) { }
-
-        uint16_t got = BLK;
-        if (!rx_done) {
-            got = BLK - huart3.RxXferCount;
-            HAL_UART_AbortReceive(&huart3);
-            st.bytes_lost += BLK - got;
-            HAL_GPIO_TogglePin(LED_Y_GPIO_Port, LED_Y_Pin);
-        }
-
-        for (uint16_t i = 0; i < got; i++) {
-            uint8_t x = tx[i] ^ rx[i];
-            if (x) {
-                st.byte_mismatch++;
-                st.bit_errors += __builtin_popcount(x);
-            } else {
-                st.bytes_rx_ok++;
-            }
-        }
-        st.blocks++;
-    }
-}
 
 /* USER CODE END 0 */
 
@@ -192,32 +120,42 @@ int main(void)
   MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
 
+  // YACT-002 TESTING
+  uart_cfg_t cfg = {
+    .instance = USART3,
+    .baud = 115200,
+    .word_length = UART_WORDLENGTH_8B,
+    .parity = UART_PARITY_NONE,
+    .stop_bits = UART_STOPBITS_1
+  };
+
+  uart_driver_create(&uart3, &cfg);
+  link_manager_init(&man_uart3, &uart3.base);
+
+  link_test_cfg_t test_uart3 = {
+    .frame_len = 64,
+    .frame_count = 1000,
+    .frame_timeout_ms = 50
+  };
+  link_manager_start(&man_uart3, &test_uart3);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-
-  //uint8_t msg[] = "Hello from M4/r/n";
-
   while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-//	HAL_UART_Transmit(
-//		&huart5,
-//		msg,
-//		sizeof(msg) - 1,
-//		HAL_MAX_DELAY);
+    link_manager_step(&man_uart3);
 
-    uart_test_run();
-
-	  HAL_GPIO_TogglePin(LED_Y_GPIO_Port, LED_Y_Pin);
-	  HAL_Delay(500);
-
-	  //HAL_GPIO_TogglePin(LED_B_GPIO_Port, LED_B_Pin);
-	  //HAL_Delay(500);
-
+    if (link_manager_state(&man_uart3) == LINK_STATE_DONE)
+    {
+      link_stats_t s;
+      link_manager_get_stats(&man_uart3, &s);
+      //handoff s
+    }
   }
   /* USER CODE END 3 */
 }
