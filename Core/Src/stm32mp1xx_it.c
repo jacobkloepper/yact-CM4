@@ -24,6 +24,7 @@
 /* USER CODE BEGIN Includes */
 #include "uart_driver.h"
 #include "i2c_driver.h"
+#include "spi_driver.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -257,6 +258,8 @@ void USART3_IRQHandler(void)
 void SPI5_IRQHandler(void)
 {
   /* USER CODE BEGIN SPI5_IRQn 0 */
+  spi_driver_irq(SPI5);
+  return;
 
   /* USER CODE END SPI5_IRQn 0 */
   HAL_SPI_IRQHandler(&hspi5);

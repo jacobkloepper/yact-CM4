@@ -29,6 +29,7 @@ typedef struct {
     uint32_t nacks;
     uint32_t bus_errors;
     uint32_t arb_lost;
+    uint32_t underruns;
     uint32_t start_ms;
     uint32_t end_ms;
 } link_stats_t;

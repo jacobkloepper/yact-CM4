@@ -20,6 +20,7 @@ typedef enum {
 #define LINK_ERR_NACK       (1u << 5)
 #define LINK_ERR_BUS        (1u << 6)
 #define LINK_ERR_ARBLOST    (1u << 7)
+#define LINK_ERR_UNDERRUN   (1u << 8)
 
 typedef struct link_driver link_driver_t;
 

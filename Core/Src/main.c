@@ -27,6 +27,7 @@
 #include "stm32mp1xx_hal_uart_ex.h"
 #include "uart_driver.h"
 #include "i2c_driver.h"
+#include "spi_driver.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -40,6 +41,8 @@
 #define I2C_SLAVE_INST  I2C2
 #define I2C2_TIMING     0x10707DBC
 #define I2C5_TIMING     0x40505874 
+
+#define SPI_LOOPBACK_INSTANCE SPI5
 
 /* USER CODE END PD */
 
@@ -61,7 +64,8 @@ UART_HandleTypeDef huart3;
 /* USER CODE BEGIN PV */
 static uart_driver_t  uart3;
 static i2c_driver_t i2c_m, i2c_s;
-static link_manager_t man_uart3, man_i2c;
+static spi_driver_t spi5;
+static link_manager_t man_uart, man_i2c, man_spi;
 
 /* USER CODE END PV */
 
@@ -147,7 +151,7 @@ int main(void)
   };
 
   uart_driver_create(&uart3, &uart_cfg);
-  link_manager_init(&man_uart3, &uart3.base, NULL);
+  link_manager_init(&man_uart, &uart3.base, NULL);
 
   /*              I2C TEST              */
   i2c_cfg_t i2c_master_cfg = {
@@ -166,13 +170,24 @@ int main(void)
   i2c_driver_create(&i2c_s, &i2c_slave_cfg);
   link_manager_init(&man_i2c, &i2c_m.base, &i2c_s.base);
 
+  /*              SPI TEST              */
+  spi_cfg_t spi_loopback_cfg = {
+    .instance = SPI_LOOPBACK_INSTANCE,
+    .role = SPI_ROLE_LOOPBACK,
+    .baud_prescaler = SPI_BAUDRATEPRESCALER_256,
+    .mode = 0,
+    .hw_nss = 0
+  };
+  spi_driver_create(&spi5, &spi_loopback_cfg);
+  link_manager_init(&man_spi, &spi5.base, NULL);
+
   // UART TEST CONFIG
   link_test_cfg_t test_uart = {
     .frame_len = 64,
     .frame_count = 10,
     .frame_timeout_ms = 50
   };
-  link_manager_start(&man_uart3, &test_uart);
+  link_manager_start(&man_uart, &test_uart);
 
   // I2C TEST CONFIG
   link_test_cfg_t test_i2c = {
@@ -181,6 +196,14 @@ int main(void)
     .frame_timeout_ms = 50
   };
   link_manager_start(&man_i2c, &test_i2c);
+
+  // SPI TEST CONFIG
+  link_test_cfg_t test_spi = {
+    .frame_len = 64,
+    .frame_count = 1000,
+    .frame_timeout_ms = 50
+  };
+  link_manager_start(&man_spi, &test_spi);
 
   /* USER CODE END 2 */
 
@@ -192,12 +215,12 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
     //link_manager_step(&man_i2c);
-    link_manager_step(&man_uart3);
+    link_manager_step(&man_spi);
 
-    if (link_manager_state(&man_uart3) == LINK_STATE_DONE)
+    if (link_manager_state(&man_spi) == LINK_STATE_DONE)
     {
       link_stats_t s;
-      link_manager_get_stats(&man_i2c, &s);
+      link_manager_get_stats(&man_spi, &s);
     }
   }
   /* USER CODE END 3 */

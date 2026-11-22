@@ -180,6 +180,7 @@ void link_manager_step(link_manager_t* m)
         if (err & LINK_ERR_NACK)        m->stats.nacks++;
         if (err & LINK_ERR_BUS)         m->stats.bus_errors++;
         if (err & LINK_ERR_ARBLOST)     m->stats.arb_lost++;
+        if (err & LINK_ERR_UNDERRUN)    m->stats.underruns++;
         m->frame_failed = 1;
         abort_all(m);
         end_frame(m);
