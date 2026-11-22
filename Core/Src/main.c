@@ -167,20 +167,20 @@ int main(void)
   link_manager_init(&man_i2c, &i2c_m.base, &i2c_s.base);
 
   // UART TEST CONFIG
-  //link_test_cfg_t test_uart3 = {
-  //  .frame_len = 64,
-  //  .frame_count = 1000,
-  //  .frame_timeout_ms = 50
-  //};
-  //link_manager_start(&man_uart3, &test_uart3);
-
-  // I2C TEST CONFIG
-  link_test_cfg_t test = {
+  link_test_cfg_t test_uart = {
     .frame_len = 64,
-    .frame_count = 1000,
+    .frame_count = 10,
     .frame_timeout_ms = 50
   };
-  link_manager_start(&man_i2c, &test);
+  link_manager_start(&man_uart3, &test_uart);
+
+  // I2C TEST CONFIG
+  link_test_cfg_t test_i2c = {
+    .frame_len = 64,
+    .frame_count = 10,
+    .frame_timeout_ms = 50
+  };
+  link_manager_start(&man_i2c, &test_i2c);
 
   /* USER CODE END 2 */
 
@@ -191,9 +191,10 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    link_manager_step(&man_i2c);
+    //link_manager_step(&man_i2c);
+    link_manager_step(&man_uart3);
 
-    if (link_manager_state(&man_i2c) == LINK_STATE_DONE)
+    if (link_manager_state(&man_uart3) == LINK_STATE_DONE)
     {
       link_stats_t s;
       link_manager_get_stats(&man_i2c, &s);
@@ -449,7 +450,7 @@ static void MX_SPI5_Init(void)
   hspi5.Init.DataSize = SPI_DATASIZE_4BIT;
   hspi5.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi5.Init.CLKPhase = SPI_PHASE_1EDGE;
-  hspi5.Init.NSS = SPI_NSS_HARD_OUTPUT;
+  hspi5.Init.NSS = SPI_NSS_SOFT;
   hspi5.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
   hspi5.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi5.Init.TIMode = SPI_TIMODE_DISABLE;
