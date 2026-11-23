@@ -28,6 +28,9 @@
 #include "uart_driver.h"
 #include "i2c_driver.h"
 #include "spi_driver.h"
+#include "links.h"
+#include "web_command_protocol.h"
+#include "vuart_port.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -37,12 +40,6 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define I2C_MASTER_INST I2C5
-#define I2C_SLAVE_INST  I2C2
-#define I2C2_TIMING     0x10707DBC
-#define I2C5_TIMING     0x40505874 
-
-#define SPI_LOOPBACK_INSTANCE SPI5
 
 /* USER CODE END PD */
 
@@ -62,10 +59,6 @@ SPI_HandleTypeDef hspi5;
 UART_HandleTypeDef huart3;
 
 /* USER CODE BEGIN PV */
-static uart_driver_t  uart3;
-static i2c_driver_t i2c_m, i2c_s;
-static spi_driver_t spi5;
-static link_manager_t man_uart, man_i2c, man_spi;
 
 /* USER CODE END PV */
 
@@ -141,69 +134,12 @@ int main(void)
   MX_SPI5_Init();
   /* USER CODE BEGIN 2 */
 
-  /*              UART TEST             */
-  uart_cfg_t uart_cfg = {
-    .instance = USART3,
-    .baud = 115200,
-    .word_length = UART_WORDLENGTH_8B,
-    .parity = UART_PARITY_NONE,
-    .stop_bits = UART_STOPBITS_1
-  };
-
-  uart_driver_create(&uart3, &uart_cfg);
-  link_manager_init(&man_uart, &uart3.base, NULL);
-
-  /*              I2C TEST              */
-  i2c_cfg_t i2c_master_cfg = {
-    .instance = I2C_MASTER_INST,
-    .role = I2C_ROLE_MASTER,
-    .timing = I2C5_TIMING,
-    .peer_addr7 = 0x18
-  };
-  i2c_cfg_t i2c_slave_cfg = {
-    .instance = I2C_SLAVE_INST,
-    .role = I2C_ROLE_SLAVE,
-    .timing = I2C2_TIMING,
-    .own_addr7 = 0x18
-  };
-  i2c_driver_create(&i2c_m, &i2c_master_cfg);
-  i2c_driver_create(&i2c_s, &i2c_slave_cfg);
-  link_manager_init(&man_i2c, &i2c_m.base, &i2c_s.base);
-
-  /*              SPI TEST              */
-  spi_cfg_t spi_loopback_cfg = {
-    .instance = SPI_LOOPBACK_INSTANCE,
-    .role = SPI_ROLE_LOOPBACK,
-    .baud_prescaler = SPI_BAUDRATEPRESCALER_256,
-    .mode = 0,
-    .hw_nss = 0
-  };
-  spi_driver_create(&spi5, &spi_loopback_cfg);
-  link_manager_init(&man_spi, &spi5.base, NULL);
-
-  // UART TEST CONFIG
-  link_test_cfg_t test_uart = {
-    .frame_len = 64,
-    .frame_count = 10,
-    .frame_timeout_ms = 50
-  };
-  link_manager_start(&man_uart, &test_uart);
-
-  // I2C TEST CONFIG
-  link_test_cfg_t test_i2c = {
-    .frame_len = 64,
-    .frame_count = 10,
-    .frame_timeout_ms = 50
-  };
-  link_manager_start(&man_i2c, &test_i2c);
-
-  // SPI TEST CONFIG
-  link_test_cfg_t test_spi = {
-    .frame_len = 64,
-    .frame_count = 1000,
-    .frame_timeout_ms = 50
-  };
-  link_manager_start(&man_spi, &test_spi);
+  links_init();                 // Init drivers and managers for uart3, i2c2, i2c5, spi5
+  cmd_init();
+  if (vuart_port_init() != 0)   // Creates /dev/ttyRPMSG0 on A7
+  {
+    Error_Handler();
+  }
 
   /* USER CODE END 2 */
 
@@ -214,14 +150,9 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    //link_manager_step(&man_i2c);
-    link_manager_step(&man_spi);
-
-    if (link_manager_state(&man_spi) == LINK_STATE_DONE)
-    {
-      link_stats_t s;
-      link_manager_get_stats(&man_spi, &s);
-    }
+    vuart_port_poll();          // mailbox -> cmd_rx()
+    cmd_poll();                 // parse commands, report progress/results
+    links_step_all();           // advance every test state machine
   }
   /* USER CODE END 3 */
 }
