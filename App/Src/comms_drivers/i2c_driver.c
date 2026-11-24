@@ -7,28 +7,28 @@
 #include <string.h>
 
 #define MAX_I2C 4
-static i2c_driver_t* s_reg[MAX_I2C];
+static i2c_driver_t* p_driver_reg[MAX_I2C];
 
-static i2c_driver_t* find_by_instance(I2C_TypeDef* instance)
+static i2c_driver_t* find_by_instance(I2C_TypeDef* p_instance)
 {
     for (uint8_t i = 0; i < MAX_I2C; i++)
     {
-        if (s_reg[i] && s_reg[i]->cfg.instance == instance)
+        if (p_driver_reg[i] && p_driver_reg[i]->cfg.p_instance == p_instance)
         {
-            return s_reg[i];
+            return p_driver_reg[i];
         }
     }
     return NULL;
 }
 
 // I2C not owned by CM4 return NULL.
-static i2c_driver_t* find_by_handle(I2C_HandleTypeDef* h)
+static i2c_driver_t* find_by_handle(I2C_HandleTypeDef* p_handle)
 {
     for (uint8_t i = 0; i < MAX_I2C; i++)
     {
-        if (s_reg[i] && &s_reg[i]->hi2c == h)
+        if (p_driver_reg[i] && &p_driver_reg[i]->hi2c == p_handle)
         {
-            return s_reg[i];
+            return p_driver_reg[i];
         }
     }
     return NULL;
@@ -39,68 +39,68 @@ static link_status_t map_status(HAL_StatusTypeDef ret)
     return (ret == HAL_OK) ? LINK_OK : (ret == HAL_BUSY) ? LINK_BUSY : LINK_ERROR;
 }
 
-static link_status_t i2c_init(link_driver_t* base)
+static link_status_t i2c_init(link_driver_t* p_link_driver)
 {
-    i2c_driver_t* d = (i2c_driver_t *)base;
+    i2c_driver_t* p_driver = (i2c_driver_t *)p_link_driver;
 
-    memset(&d->hi2c, 0, sizeof(d->hi2c));
-    d->hi2c.Instance = d->cfg.instance;
-    d->hi2c.Init.Timing = d->cfg.timing;
-    d->hi2c.Init.OwnAddress1 = (d->cfg.role == I2C_ROLE_SLAVE) ? ((uint32_t)d->cfg.own_addr7 << 1) : 0; // HAL wants 7-bit addr left shifted by one.
-    d->hi2c.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-    d->hi2c.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-    d->hi2c.Init.OwnAddress2 = 0;
-    d->hi2c.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
-    d->hi2c.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-    d->hi2c.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+    memset(&p_driver->hi2c, 0, sizeof(p_driver->hi2c));
+    p_driver->hi2c.Instance = p_driver->cfg.p_instance;
+    p_driver->hi2c.Init.Timing = p_driver->cfg.timing;
+    p_driver->hi2c.Init.OwnAddress1 = (p_driver->cfg.role == I2C_ROLE_SLAVE) ? ((uint32_t)p_driver->cfg.own_addr7 << 1) : 0; // HAL wants 7-bit addr left shifted by one.
+    p_driver->hi2c.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+    p_driver->hi2c.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+    p_driver->hi2c.Init.OwnAddress2 = 0;
+    p_driver->hi2c.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
+    p_driver->hi2c.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+    p_driver->hi2c.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
 
-    base->tx_done = 0;
-    base->rx_done = 0;
-    base->err_flags = 0;
+    p_link_driver->tx_done = 0;
+    p_link_driver->rx_done = 0;
+    p_link_driver->err_flags = 0;
 
     // HAL_I2C_MspInit handles clocks, AF, and NVIC.
-    if (HAL_I2C_Init(&d->hi2c) != HAL_OK) return LINK_ERROR;
-    if (HAL_I2CEx_ConfigAnalogFilter(&d->hi2c, I2C_ANALOGFILTER_ENABLE) != HAL_OK) return LINK_ERROR;
-    if (HAL_I2CEx_ConfigDigitalFilter(&d->hi2c, 0) != HAL_OK) return LINK_ERROR;
+    if (HAL_I2C_Init(&p_driver->hi2c) != HAL_OK) return LINK_ERROR;
+    if (HAL_I2CEx_ConfigAnalogFilter(&p_driver->hi2c, I2C_ANALOGFILTER_ENABLE) != HAL_OK) return LINK_ERROR;
+    if (HAL_I2CEx_ConfigDigitalFilter(&p_driver->hi2c, 0) != HAL_OK) return LINK_ERROR;
     return LINK_OK;
 }
 
-static link_status_t i2c_deinit(link_driver_t* base)
+static link_status_t i2c_deinit(link_driver_t* p_link_driver)
 {
-    i2c_driver_t* d = (i2c_driver_t *)base;
-    return (HAL_I2C_DeInit(&d->hi2c) == HAL_OK) ? LINK_OK : LINK_ERROR;
+    i2c_driver_t* p_driver = (i2c_driver_t *)p_link_driver;
+    return (HAL_I2C_DeInit(&p_driver->hi2c) == HAL_OK) ? LINK_OK : LINK_ERROR;
 }
 
-static link_status_t i2c_start_tx(link_driver_t* base, const uint8_t* buf, uint16_t len)
+static link_status_t i2c_start_tx(link_driver_t* p_link_driver, const uint8_t* p_buf, uint16_t len)
 {
-    i2c_driver_t* d = (i2c_driver_t *)base;
+    i2c_driver_t* p_driver = (i2c_driver_t *)p_link_driver;
     HAL_StatusTypeDef ret;
-    if (d->cfg.role == I2C_ROLE_MASTER)
+    if (p_driver->cfg.role == I2C_ROLE_MASTER)
     {
-        ret = HAL_I2C_Master_Transmit_IT(&d->hi2c, (uint16_t)(d->cfg.peer_addr7 << 1), (uint8_t*)buf, len);
+        ret = HAL_I2C_Master_Transmit_IT(&p_driver->hi2c, (uint16_t)(p_driver->cfg.peer_addr7 << 1), (uint8_t*)p_buf, len);
     } else {
-        ret = HAL_I2C_Slave_Transmit_IT(&d->hi2c, (uint8_t*)buf, len);
+        ret = HAL_I2C_Slave_Transmit_IT(&p_driver->hi2c, (uint8_t*)p_buf, len);
     }
     return map_status(ret);
 }
 
-static link_status_t i2c_start_rx(link_driver_t* base, uint8_t* buf, uint16_t len)
+static link_status_t i2c_start_rx(link_driver_t* p_link_driver, uint8_t* p_buf, uint16_t len)
 {
-    i2c_driver_t* d = (i2c_driver_t *)base;
+    i2c_driver_t* p_driver = (i2c_driver_t *)p_link_driver;
     HAL_StatusTypeDef ret;
-    if (d->cfg.role == I2C_ROLE_SLAVE)
-        ret = HAL_I2C_Slave_Receive_IT(&d->hi2c, buf, len);
+    if (p_driver->cfg.role == I2C_ROLE_SLAVE)
+        ret = HAL_I2C_Slave_Receive_IT(&p_driver->hi2c, p_buf, len);
     else
-        ret = HAL_I2C_Master_Receive_IT(&d->hi2c, (uint16_t)(d->cfg.peer_addr7 << 1), buf, len);
+        ret = HAL_I2C_Master_Receive_IT(&p_driver->hi2c, (uint16_t)(p_driver->cfg.peer_addr7 << 1), p_buf, len);
     return map_status(ret);
 }
 
 // HAL does not support slave transfer abort, so reset. Used on error/timeout paths.
-static void i2c_abort(link_driver_t* base)
+static void i2c_abort(link_driver_t* p_link_driver)
 {
-    i2c_driver_t* d = (i2c_driver_t*)base;
-    HAL_I2C_DeInit(&d->hi2c);
-    i2c_init(base);
+    i2c_driver_t* p_driver = (i2c_driver_t*)p_link_driver;
+    HAL_I2C_DeInit(&p_driver->hi2c);
+    i2c_init(p_link_driver);
 }
 
 static const link_driver_ops_t I2C_OPS = {
@@ -111,86 +111,86 @@ static const link_driver_ops_t I2C_OPS = {
     .abort = i2c_abort
 };
 
-void i2c_driver_create(i2c_driver_t* d, const i2c_cfg_t* cfg)
+void i2c_driver_create(i2c_driver_t* p_driver, const i2c_cfg_t* p_config)
 {
-    memset(d, 0, sizeof(*d));
-    d->base.ops = &I2C_OPS;
-    d->cfg = *cfg;
+    memset(p_driver, 0, sizeof(*p_driver));
+    p_driver->link_driver.p_ops = &I2C_OPS;
+    p_driver->cfg = *p_config;
     for (uint8_t i = 0; i < MAX_I2C; i++)
     {
-        if (!s_reg[i])
+        if (!p_driver_reg[i])
         {
-            s_reg[i] = d;
+            p_driver_reg[i] = p_driver;
             break;
         }
     }
 }
 
-void i2c_driver_ev_irq(I2C_TypeDef* instance)
+void i2c_driver_ev_irq(I2C_TypeDef* p_instance)
 {
-    i2c_driver_t* d = find_by_instance(instance);
-    if (d)
+    i2c_driver_t* p_driver = find_by_instance(p_instance);
+    if (p_driver)
     {
-        HAL_I2C_EV_IRQHandler(&d->hi2c);
+        HAL_I2C_EV_IRQHandler(&p_driver->hi2c);
     }
 }
 
-void i2c_driver_er_irq(I2C_TypeDef* instance)
+void i2c_driver_er_irq(I2C_TypeDef* p_instance)
 {
-    i2c_driver_t* d = find_by_instance(instance);
-    if (d)
+    i2c_driver_t* p_driver = find_by_instance(p_instance);
+    if (p_driver)
     {
-        HAL_I2C_ER_IRQHandler(&d->hi2c);
+        HAL_I2C_ER_IRQHandler(&p_driver->hi2c);
     }
 }
 
 /* HAL callbacks */
-void HAL_I2C_MasterTxCpltCallback(I2C_HandleTypeDef* h)
+void HAL_I2C_MasterTxCpltCallback(I2C_HandleTypeDef* p_handle)
 {
-    i2c_driver_t* d = find_by_handle(h);
-    if (d) 
+    i2c_driver_t* p_driver = find_by_handle(p_handle);
+    if (p_driver) 
     {
-        d->base.tx_done = 1;
+        p_driver->link_driver.tx_done = 1;
     }
 }
 
-void HAL_I2C_SlaveTxCpltCallback(I2C_HandleTypeDef* h)
+void HAL_I2C_SlaveTxCpltCallback(I2C_HandleTypeDef* p_handle)
 {
-    i2c_driver_t* d = find_by_handle(h);
-    if (d) 
+    i2c_driver_t* p_driver = find_by_handle(p_handle);
+    if (p_driver) 
     {
-        d->base.tx_done = 1;
+        p_driver->link_driver.tx_done = 1;
     }
 }
 
-void HAL_I2C_MasterRxCpltCallback(I2C_HandleTypeDef* h)
+void HAL_I2C_MasterRxCpltCallback(I2C_HandleTypeDef* p_handle)
 {
-    i2c_driver_t* d = find_by_handle(h);
-    if (d) 
+    i2c_driver_t* p_driver = find_by_handle(p_handle);
+    if (p_driver) 
     {
-        d->base.rx_done = 1;
+        p_driver->link_driver.rx_done = 1;
     }
 }
 
-void HAL_I2C_SlaveRxCpltCallback(I2C_HandleTypeDef* h)
+void HAL_I2C_SlaveRxCpltCallback(I2C_HandleTypeDef* p_handle)
 {
-    i2c_driver_t* d = find_by_handle(h);
-    if (d) 
+    i2c_driver_t* p_driver = find_by_handle(p_handle);
+    if (p_driver) 
     {
-        d->base.rx_done = 1;
+        p_driver->link_driver.rx_done = 1;
     }
 }
 
-void HAL_I2C_ErrorCallback(I2C_HandleTypeDef* h)
+void HAL_I2C_ErrorCallback(I2C_HandleTypeDef* p_handle)
 {
-    i2c_driver_t* d = find_by_handle(h);
-    if (!d) return;
+    i2c_driver_t* p_driver = find_by_handle(p_handle);
+    if (!p_driver) return;
 
-    uint32_t e = h->ErrorCode, f = 0;
+    uint32_t e = p_handle->ErrorCode, f = 0;
     if (e & HAL_I2C_ERROR_AF)   f |= LINK_ERR_NACK;
     if (e & HAL_I2C_ERROR_BERR) f |= LINK_ERR_BUS;
     if (e & HAL_I2C_ERROR_ARLO) f |= LINK_ERR_ARBLOST;
     if (e & HAL_I2C_ERROR_OVR)  f |= LINK_ERR_OVERRUN;
     if (!f)                     f  = LINK_ERR_OTHER;
-    d->base.err_flags |= f;
+    p_driver->link_driver.err_flags |= f;
 }

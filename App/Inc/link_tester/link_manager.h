@@ -42,8 +42,8 @@ typedef struct {
 
 typedef struct {
     /* Link lifetime */
-    link_driver_t*      tx_driver; /* tx endpoint */
-    link_driver_t*      rx_driver; /* rx endpoint (== tx_driver for loopback) */
+    link_driver_t*      p_link_tx; /* tx endpoint */
+    link_driver_t*      p_link_rx; /* rx endpoint (== p_link_tx for loopback) */
     link_state_t        state;
     link_test_cfg_t     cfg;
     link_stats_t        stats;
@@ -60,17 +60,17 @@ typedef struct {
 } link_manager_t;
 
 /* Bind a manager to a driver (static alloc. by caller) */
-void link_manager_init(link_manager_t* m, link_driver_t* tx, link_driver_t* rx);
+void link_manager_init(link_manager_t* p_manager, link_driver_t* p_link_tx, link_driver_t* p_link_rx);
 
 /* Initialize driver and set running state. */
-link_status_t link_manager_start(link_manager_t* m, const link_test_cfg_t* cfg);
+link_status_t link_manager_start(link_manager_t* p_manager, const link_test_cfg_t* p_config);
 
 /* Call each loop iteration. Non-blocking. */
-void link_manager_step(link_manager_t* m);
-void link_manager_abort(link_manager_t* m);
-link_state_t link_manager_state(const link_manager_t* m);
+void link_manager_step(link_manager_t* p_manager);
+void link_manager_abort(link_manager_t* p_manager);
+link_state_t link_manager_state(const link_manager_t* p_manager);
 
 /* Copy stats for upstream handoff. */
-void link_manager_get_stats(const link_manager_t* m, link_stats_t* stats);
+void link_manager_get_stats(const link_manager_t* p_manager, link_stats_t* p_link_stats);
 
 #endif /* LINK_MANAGER_H */

@@ -7,15 +7,15 @@
 #include <string.h>
 
 #define MAX_UARTS 4
-static uart_driver_t* s_reg[MAX_UARTS];
+static uart_driver_t* p_driver_reg[MAX_UARTS];
 
-static uart_driver_t* find_by_instance(USART_TypeDef* instance)
+static uart_driver_t* find_by_instance(USART_TypeDef* p_instance)
 {
     for (uint8_t i = 0; i < MAX_UARTS; i++)
     {
-        if (s_reg[i] && s_reg[i]->cfg.instance == instance)
+        if (p_driver_reg[i] && p_driver_reg[i]->cfg.p_instance == p_instance)
         {
-            return s_reg[i];
+            return p_driver_reg[i];
         }
     }
     return NULL;
@@ -25,58 +25,58 @@ static uart_driver_t* find_by_handle(UART_HandleTypeDef* h)
 {
     for (uint8_t i = 0; i < MAX_UARTS; i++)
     {
-        if (s_reg[i] && (&s_reg[i]->huart == h))
+        if (p_driver_reg[i] && (&p_driver_reg[i]->huart == h))
         {
-            return s_reg[i];
+            return p_driver_reg[i];
         }
     }
 	return NULL;
 }
 
-static link_status_t uart_init(link_driver_t* base)
+static link_status_t uart_init(link_driver_t* p_link_driver)
 {
-    uart_driver_t* d = (uart_driver_t*)base;
+    uart_driver_t* p_driver = (uart_driver_t*)p_link_driver;
 
-    memset(&d->huart, 0, sizeof(d->huart));
-    d->huart.Instance           = d->cfg.instance;
-    d->huart.Init.BaudRate      = d->cfg.baud;
-    d->huart.Init.WordLength    = d->cfg.word_length;
-    d->huart.Init.StopBits      = d->cfg.stop_bits;
-    d->huart.Init.Parity        = d->cfg.parity;
-    d->huart.Init.Mode          = UART_MODE_TX_RX;
-    d->huart.Init.HwFlowCtl     = UART_HWCONTROL_NONE;
-    d->huart.Init.OverSampling  = UART_OVERSAMPLING_16;
+    memset(&p_driver->huart, 0, sizeof(p_driver->huart));
+    p_driver->huart.Instance           = p_driver->cfg.p_instance;
+    p_driver->huart.Init.BaudRate      = p_driver->cfg.baud;
+    p_driver->huart.Init.WordLength    = p_driver->cfg.word_length;
+    p_driver->huart.Init.StopBits      = p_driver->cfg.stop_bits;
+    p_driver->huart.Init.Parity        = p_driver->cfg.parity;
+    p_driver->huart.Init.Mode          = UART_MODE_TX_RX;
+    p_driver->huart.Init.HwFlowCtl     = UART_HWCONTROL_NONE;
+    p_driver->huart.Init.OverSampling  = UART_OVERSAMPLING_16;
 
-    base->tx_done = 0;
-    base->rx_done = 0;
-    base->err_flags = 0;
+    p_link_driver->tx_done = 0;
+    p_link_driver->rx_done = 0;
+    p_link_driver->err_flags = 0;
 
-    return (HAL_UART_Init(&d->huart) == HAL_OK) ? LINK_OK : LINK_ERROR;
+    return (HAL_UART_Init(&p_driver->huart) == HAL_OK) ? LINK_OK : LINK_ERROR;
 }
 
-static link_status_t uart_deinit(link_driver_t* base)
+static link_status_t uart_deinit(link_driver_t* p_link_driver)
 {
-    uart_driver_t* d = (uart_driver_t*)base;
-    return (HAL_UART_DeInit(&d->huart) == HAL_OK) ? LINK_OK : LINK_ERROR;
+    uart_driver_t* p_driver = (uart_driver_t*)p_link_driver;
+    return (HAL_UART_DeInit(&p_driver->huart) == HAL_OK) ? LINK_OK : LINK_ERROR;
 }
 
-static link_status_t uart_start_tx(link_driver_t* base, const uint8_t* buf, uint16_t len)
+static link_status_t uart_start_tx(link_driver_t* p_link_driver, const uint8_t* p_buf, uint16_t len)
 {
-    uart_driver_t* d = (uart_driver_t*)base;
-    HAL_StatusTypeDef ret = HAL_UART_Transmit_IT(&d->huart, (uint8_t*)buf, len);
+    uart_driver_t* p_driver = (uart_driver_t*)p_link_driver;
+    HAL_StatusTypeDef ret = HAL_UART_Transmit_IT(&p_driver->huart, (uint8_t*)p_buf, len);
     return (ret == HAL_OK) ? LINK_OK : (ret == HAL_BUSY) ? LINK_BUSY : LINK_ERROR;
 }
 
-static link_status_t uart_start_rx(link_driver_t* base, uint8_t* buf, uint16_t len)
+static link_status_t uart_start_rx(link_driver_t* p_link_driver, uint8_t* p_buf, uint16_t len)
 {
-    uart_driver_t *d = (uart_driver_t *)base;
-    HAL_StatusTypeDef ret = HAL_UART_Receive_IT(&d->huart, buf, len);
+    uart_driver_t* p_driver = (uart_driver_t *)p_link_driver;
+    HAL_StatusTypeDef ret = HAL_UART_Receive_IT(&p_driver->huart, p_buf, len);
     return (ret == HAL_OK) ? LINK_OK : (ret == HAL_BUSY) ? LINK_BUSY : LINK_ERROR;
 }
 
-static void uart_abort(link_driver_t* base)
+static void uart_abort(link_driver_t* p_link_driver)
 {
-    HAL_UART_Abort(&((uart_driver_t*)base)->huart);
+    HAL_UART_Abort(&((uart_driver_t*)p_link_driver)->huart);
 }
 
 static const link_driver_ops_t UART_OPS = {
@@ -87,60 +87,60 @@ static const link_driver_ops_t UART_OPS = {
     .abort = uart_abort
 };
 
-void uart_driver_create(uart_driver_t* ud, const uart_cfg_t* cfg)
+void uart_driver_create(uart_driver_t* p_driver, const uart_cfg_t* p_config)
 {
-    memset(ud, 0, sizeof *ud);
-    ud->base.ops = &UART_OPS;
-    ud->cfg = *cfg;
+    memset(p_driver, 0, sizeof(*p_driver));
+    p_driver->link_driver.p_ops = &UART_OPS;
+    p_driver->cfg = *p_config;
 
     // Add to our uart driver list
     for (uint8_t i = 0; i < MAX_UARTS; i++)
     {
-        if (!s_reg[i])
+        if (!p_driver_reg[i])
         {
-            s_reg[i] = ud;
+            p_driver_reg[i] = p_driver;
             break;
         }
     }
 }
 
-void uart_driver_irq(USART_TypeDef *instance)
+void uart_driver_irq(USART_TypeDef *p_instance)
 {
-    uart_driver_t* d = find_by_instance(instance);
-    if (d)
+    uart_driver_t* p_driver = find_by_instance(p_instance);
+    if (p_driver)
     {
-        HAL_UART_IRQHandler(&d->huart);
+        HAL_UART_IRQHandler(&p_driver->huart);
     }
 }
 
 /* HAL callbacks */
-void HAL_UART_TxCpltCallback(UART_HandleTypeDef* h)
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef* p_handle)
 {
-    uart_driver_t* d = find_by_handle(h);
-    if (d)
+    uart_driver_t* p_driver = find_by_handle(p_handle);
+    if (p_driver)
     {
-        d->base.tx_done = 1;
+        p_driver->link_driver.tx_done = 1;
     }
 }
 
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef* h)
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef* p_handle)
 {
-    uart_driver_t* d = find_by_handle(h);
-    if (d)
+    uart_driver_t* p_driver = find_by_handle(p_handle);
+    if (p_driver)
     {
-        d->base.rx_done = 1;
+        p_driver->link_driver.rx_done = 1;
     }
 }
 
-void HAL_UART_ErrorCallback(UART_HandleTypeDef* h)
+void HAL_UART_ErrorCallback(UART_HandleTypeDef* p_handle)
 {
-    uart_driver_t* d = find_by_handle(h);
-    if (!d)
+    uart_driver_t* p_driver = find_by_handle(p_handle);
+    if (!p_driver)
     {
         return;
     }
 
-    uint32_t e = h->ErrorCode;
+    uint32_t e = p_handle->ErrorCode;
     uint32_t f = 0;
     if (e & HAL_UART_ERROR_PE)  f |= LINK_ERR_PARITY;
     if (e & HAL_UART_ERROR_FE)  f |= LINK_ERR_FRAMING;
@@ -148,5 +148,5 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef* h)
     if (e & HAL_UART_ERROR_ORE) f |= LINK_ERR_OVERRUN;
     if (!f)                     f  = LINK_ERR_OTHER;
 
-    d->base.err_flags |= f;
+    p_driver->link_driver.err_flags |= f;
 }

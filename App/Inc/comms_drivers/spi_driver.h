@@ -15,7 +15,7 @@ typedef enum {
 } spi_role_t;
 
 typedef struct {
-    SPI_TypeDef*    instance;
+    SPI_TypeDef*    p_instance;
     spi_role_t      role;
     uint32_t        baud_prescaler;
     uint8_t         mode;
@@ -23,18 +23,18 @@ typedef struct {
 } spi_cfg_t;
 
 typedef struct {
-    link_driver_t       base;
+    link_driver_t       link_driver;                // Must be first.
     spi_cfg_t           cfg;
     SPI_HandleTypeDef   hspi;
     uint8_t             scratch[SPI_MAX_FRAME];
-    uint8_t*            lb_rx;
+    uint8_t*            p_lb_rx;
     uint16_t            lb_len;
 } spi_driver_t;
 
-// Binds driver. Does not touch hardware until d->base->ops->init().
-void spi_driver_create(spi_driver_t* d, const spi_cfg_t* cfg);
+// Binds driver. Does not touch hardware until p_driver->link_driver.p_ops->init().
+void spi_driver_create(spi_driver_t* p_driver, const spi_cfg_t* p_config);
 
 // Call from generated IRQ handler.
-void spi_driver_irq(SPI_TypeDef* instance);
+void spi_driver_irq(SPI_TypeDef* p_instance);
 
 #endif /* SPI_DRIVER_H */

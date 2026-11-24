@@ -12,7 +12,7 @@ typedef enum {
 } i2c_role_t;
 
 typedef struct {
-    I2C_TypeDef*        instance;
+    I2C_TypeDef*        p_instance;
     i2c_role_t          role;
     uint32_t            timing;
     uint8_t             own_addr7;
@@ -20,16 +20,16 @@ typedef struct {
 } i2c_cfg_t;
 
 typedef struct {
-    link_driver_t       base;
+    link_driver_t       link_driver; // Must be first
     i2c_cfg_t           cfg;
     I2C_HandleTypeDef   hi2c;
 } i2c_driver_t;
 
-// Binds driver. Does not touch hardware until d->base->ops->init().
-void i2c_driver_create(i2c_driver_t* d, const i2c_cfg_t* cfg);
+// Binds driver. Does not touch hardware until p_driver->link_driver.p_ops->init().
+void i2c_driver_create(i2c_driver_t* p_driver, const i2c_cfg_t* p_config);
 
 // Call from generated I2C IRQ handler.
-void i2c_driver_ev_irq(I2C_TypeDef* instance);
-void i2c_driver_er_irq(I2C_TypeDef* instance);
+void i2c_driver_ev_irq(I2C_TypeDef* p_instance);
+void i2c_driver_er_irq(I2C_TypeDef* p_instance);
 
 #endif /* I2C_DRIVER_H */

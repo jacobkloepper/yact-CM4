@@ -27,27 +27,27 @@ void links_init(void)
 {
     /* UART: USART3 TX jumpered to RX, one driver is both endpoints */
     uart_cfg_t ucfg = {
-        .instance = USART3, .baud = 115200,
+        .p_instance = USART3, .baud = 115200,
         .word_length = UART_WORDLENGTH_8B,
         .parity = UART_PARITY_NONE, .stop_bits = UART_STOPBITS_1,
     };
     uart_driver_create(&uart3, &ucfg);
-    link_manager_init(&mgr_uart, &uart3.base, NULL);
+    link_manager_init(&mgr_uart, &uart3.link_driver, NULL);
 
     /* I2C: I2C2 master writes, I2C5 slave receives */
-    i2c_cfg_t mcfg = { .instance = I2C2, .role = I2C_ROLE_MASTER,
+    i2c_cfg_t mcfg = { .p_instance = I2C2, .role = I2C_ROLE_MASTER,
                        .timing = I2C2_TIMING, .peer_addr7 = LINK_I2C_ADDR };
-    i2c_cfg_t scfg = { .instance = I2C5, .role = I2C_ROLE_SLAVE,
+    i2c_cfg_t scfg = { .p_instance = I2C5, .role = I2C_ROLE_SLAVE,
                        .timing = I2C5_TIMING, .own_addr7  = LINK_I2C_ADDR };
     i2c_driver_create(&i2c_m, &mcfg);
     i2c_driver_create(&i2c_s, &scfg);
-    link_manager_init(&mgr_i2c, &i2c_m.base, &i2c_s.base);
+    link_manager_init(&mgr_i2c, &i2c_m.link_driver, &i2c_s.link_driver);
 
     /* SPI: SPI5 single-instance loopback (MOSI jumpered to MISO) */
-    spi_cfg_t lb = { .instance = SPI5, .role = SPI_ROLE_LOOPBACK,
+    spi_cfg_t lb = { .p_instance = SPI5, .role = SPI_ROLE_LOOPBACK,
                      .baud_prescaler = SPI_BAUDRATEPRESCALER_256, .mode = 0 };
     spi_driver_create(&spi5, &lb);
-    link_manager_init(&mgr_spi, &spi5.base, NULL);
+    link_manager_init(&mgr_spi, &spi5.link_driver, NULL);
 }
 
 unsigned    links_count(void)       { return (unsigned)N_LINKS; }

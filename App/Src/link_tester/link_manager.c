@@ -7,24 +7,24 @@
 /* Static helpers */
 static uint8_t split(const link_manager_t* m)
 {
-    return m->rx_driver != m->tx_driver;
+    return m->p_link_rx != m->p_link_tx;
 }
 
 static void abort_all(link_manager_t* m)
 {
-    m->tx_driver->ops->abort(m->tx_driver);
+    m->p_link_tx->p_ops->abort(m->p_link_tx);
     if (split(m))
     {
-        m->rx_driver->ops->abort(m->rx_driver);
+        m->p_link_rx->p_ops->abort(m->p_link_rx);
     }
 }
 
 static void deinit_all(link_manager_t* m)
 {
-    m->tx_driver->ops->deinit(m->tx_driver);
+    m->p_link_tx->p_ops->deinit(m->p_link_tx);
     if (split(m))
     {
-        m->rx_driver->ops->deinit(m->rx_driver);
+        m->p_link_rx->p_ops->deinit(m->p_link_rx);
     }
 }
 
@@ -46,8 +46,8 @@ static void begin_frame(link_manager_t* m)
     memset(m->rx_buf, 0, m->cfg.frame_len);
 
     // Initialize sender/receiver
-    if (m->rx_driver->ops->start_rx(m->rx_driver, m->rx_buf, m->cfg.frame_len) != LINK_OK ||
-        m->tx_driver->ops->start_tx(m->tx_driver, m->tx_buf, m->cfg.frame_len) != LINK_OK)
+    if (m->p_link_rx->p_ops->start_rx(m->p_link_rx, m->rx_buf, m->cfg.frame_len) != LINK_OK ||
+        m->p_link_tx->p_ops->start_tx(m->p_link_tx, m->tx_buf, m->cfg.frame_len) != LINK_OK)
     {
         finish(m, LINK_STATE_FAILED);
         return;
@@ -89,8 +89,8 @@ void link_manager_get_stats(const link_manager_t* m, link_stats_t* stats)
 void link_manager_init(link_manager_t* m, link_driver_t* tx, link_driver_t* rx)
 {
     memset(m, 0, sizeof *m);
-    m->tx_driver = tx;
-    m->rx_driver = rx ? rx : tx;
+    m->p_link_tx = tx;
+    m->p_link_rx = rx ? rx : tx;
     m->state = LINK_STATE_IDLE;
 }
 
@@ -110,14 +110,14 @@ link_status_t link_manager_start(link_manager_t* m, const link_test_cfg_t* cfg)
     m->frame_active = 0;
 
     // Initialize driver.
-    if (m->tx_driver->ops->init(m->tx_driver) != LINK_OK)
+    if (m->p_link_tx->p_ops->init(m->p_link_tx) != LINK_OK)
     {
         m->state = LINK_STATE_FAILED;
         return LINK_ERROR;
     }
-    if (split(m) && m->rx_driver->ops->init(m->rx_driver) != LINK_OK)
+    if (split(m) && m->p_link_rx->p_ops->init(m->p_link_rx) != LINK_OK)
     {
-        m->tx_driver->ops->deinit(m->tx_driver);
+        m->p_link_tx->p_ops->deinit(m->p_link_tx);
         m->state = LINK_STATE_FAILED;
         return LINK_ERROR;
     }
@@ -149,8 +149,8 @@ void link_manager_step(link_manager_t* m)
     }
 
     // Atomically snapshot and clear flags from ISR
-    link_driver_t* tx = m->tx_driver;
-    link_driver_t* rx = m->rx_driver;
+    link_driver_t* tx = m->p_link_tx;
+    link_driver_t* rx = m->p_link_rx;
     uint8_t tx_done, rx_done; uint32_t err;
     __disable_irq();
 
